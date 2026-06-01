@@ -1,0 +1,60 @@
+<!DOCTYPE html><html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Catur Belajar</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:linear-gradient(135deg,#111827,#1f2937);color:#fff;display:flex;flex-direction:column;align-items:center;padding:16px}
+h1{margin:0 0 12px}
+.controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:14px}
+button,select{padding:10px 12px;border:none;border-radius:8px;font-size:16px}
+#board{display:grid;grid-template-columns:repeat(8,64px);grid-template-rows:repeat(8,64px);border:4px solid #374151;border-radius:10px;overflow:hidden;box-shadow:0 10px 25px rgba(0,0,0,.35)}
+.cell{display:flex;align-items:center;justify-content:center;font-size:42px;cursor:pointer;transition:.15s}
+.cell:active{transform:scale(.95)}
+.light{background:#f3e5c8}.dark{background:#8b5e3c}.selected{outline:4px solid #facc15;outline-offset:-4px}.hint{background:#22c55e!important}
+.white-piece{color:#fff;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000}
+.black-piece{color:#111}
+#score,#info{margin-top:12px;background:#111827;padding:12px;border-radius:10px;text-align:center}
+@media(max-width:600px){#board{grid-template-columns:repeat(8,11vw);grid-template-rows:repeat(8,11vw)}.cell{font-size:7vw}}
+</style>
+</head>
+<body>
+<h1>♟️ Catur Belajar</h1>
+<div class="controls">
+<button onclick="toggleHints()">Bantuan ON/OFF</button>
+<select id="mode"><option value="cpu">VS CPU</option><option value="pvp">Player vs Player</option></select>
+<select id="difficulty"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select>
+</div>
+<div id="board"></div>
+<div id="score">⚪ Putih: 0 | ⚫ Hitam: 0</div>
+<div id="info">Klik bidak untuk bermain.</div>
+<script>
+const boardEl=document.getElementById('board');
+const info=document.getElementById('info');
+const scoreEl=document.getElementById('score');
+const pieces={K:'♔',Q:'♕',R:'♖',B:'♗',N:'♘',P:'♙',k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'};
+let board=[],selected=null,turn='w',showHints=true,whiteScore=0,blackScore=0;
+function colorOf(p){return !p?null:(p===p.toUpperCase()?'w':'b')}
+function msg(t){info.textContent=t}
+function updateScore(){scoreEl.textContent=`⚪ Putih: ${whiteScore} | ⚫ Hitam: ${blackScore}`}
+function resetGame(){turn='w';selected=null;board=[['r','n','b','q','k','b','n','r'],['p','p','p','p','p','p','p','p'],['','','','','','','',''],['','','','','','','',''],['','','','','','','',''],['','','','','','','',''],['P','P','P','P','P','P','P','P'],['R','N','B','Q','K','B','N','R']];render();msg('Klik bidak untuk bermain.')}
+function toggleHints(){showHints=!showHints;render()}
+function inBounds(r,c){return r>=0&&r<8&&c>=0&&c<8}
+function legalMoves(r,c){const p=board[r][c];if(!p)return[];let m=[];const d=colorOf(p)==='w'?-1:1;
+if(p.toLowerCase()==='p'){if(inBounds(r+d,c)&&!board[r+d][c])m.push([r+d,c]);for(let dc of[-1,1])if(inBounds(r+d,c+dc)&&board[r+d][c+dc]&&colorOf(board[r+d][c+dc])!==colorOf(p))m.push([r+d,c+dc])}
+if(p.toLowerCase()==='n')for(let [dr,dc] of [[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]])add(r+dr,c+dc)
+if('rbq'.includes(p.toLowerCase())){if('rq'.includes(p.toLowerCase()))for(let [dr,dc] of [[1,0],[-1,0],[0,1],[0,-1]])slide(dr,dc);if('bq'.includes(p.toLowerCase()))for(let [dr,dc] of [[1,1],[1,-1],[-1,1],[-1,-1]])slide(dr,dc)}
+if(p.toLowerCase()==='k')for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++)if(dr||dc)add(r+dr,c+dc)
+function add(nr,nc){if(inBounds(nr,nc)&&(!board[nr][nc]||colorOf(board[nr][nc])!==colorOf(p)))m.push([nr,nc])}
+function slide(dr,dc){let nr=r+dr,nc=c+dc;while(inBounds(nr,nc)){if(!board[nr][nc])m.push([nr,nc]);else{if(colorOf(board[nr][nc])!==colorOf(p))m.push([nr,nc]);break}nr+=dr;nc+=dc}}
+return m}
+function finish(winner){if(winner==='w')whiteScore++;else blackScore++;updateScore();setTimeout(()=>{alert(`👑 Sekakmat!\n\n${winner==='w'?'⚪ Putih menang!\n⚫ Hitam kalah!':'⚫ Hitam menang!\n⚪ Putih kalah!'}\n\nOK`);resetGame();},120)}
+function cpuMove(){let all=[];for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(colorOf(board[r][c])==='b')for(let to of legalMoves(r,c))all.push({from:[r,c],to});if(!all.length)return;let move=all[Math.floor(Math.random()*all.length)];let captured=board[move.to[0]][move.to[1]];board[move.to[0]][move.to[1]]=board[move.from[0]][move.from[1]];board[move.from[0]][move.from[1]]='';turn='w';render();if(captured==='K')finish('b')}
+function clickCell(r,c){const mode=document.getElementById('mode').value;if(selected){let moves=legalMoves(...selected);if(moves.some(([mr,mc])=>mr===r&&mc===c)){let captured=board[r][c];board[r][c]=board[selected[0]][selected[1]];board[selected[0]][selected[1]]='';selected=null;turn=turn==='w'?'b':'w';render();if(captured==='k')return finish('w');if(captured==='K')return finish('b');if(mode==='cpu'&&turn==='b')setTimeout(cpuMove,400);return}}
+if(board[r][c]&&colorOf(board[r][c])===turn)selected=[r,c];else selected=null;render()}
+function render(){boardEl.innerHTML='';let hints=selected&&showHints?legalMoves(...selected):[];for(let r=0;r<8;r++)for(let c=0;c<8;c++){let d=document.createElement('div');d.className='cell '+((r+c)%2?'dark':'light');if(selected&&selected[0]===r&&selected[1]===c)d.classList.add('selected');if(hints.some(([hr,hc])=>hr===r&&hc===c))d.classList.add('hint');let p=board[r][c];d.textContent=pieces[p]||'';if(p)d.classList.add(colorOf(p)==='w'?'white-piece':'black-piece');d.onclick=()=>clickCell(r,c);boardEl.appendChild(d)}}
+resetGame();updateScore();
+</script>
+</body>
+</html>
